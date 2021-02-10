@@ -31,11 +31,10 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
         if(init.method=="gnls") {
             # note that one of the good things about gnls is that NaN is removed, so c and d estimate can be more reasonable
             if (!f.is.1) {
-            print("here")
-            print("a"%.% 1)
-            print(  "readout.y ~ log(c+(d-c)/(1+" %.% k %.% "^b*(((d-c)/(exp(readout.x)-c))^(1/f)-1))^f)"  )
+            #print(  "readout.y ~ log(c+(d-c)/(1+" %.% k %.% "^b*(((d-c)/(exp(readout.x)-c))^(1/f)-1))^f)"  )
                 formula.gnls = as.formula(  "readout.y ~ log(c+(d-c)/(1+"%.%k%.%"^b*(((d-c)/(exp(readout.x)-c))^(1/f)-1))^f)"  ) 
             } else formula.gnls = as.formula(  "readout.y ~ log(c+(d-c)/(1+"%.%k%.%"^b*(((d-c)/(exp(readout.x)-c))-1)))"  ) 
+            
             # suppress warnings from the following gnls
             fit.1=try(suppressWarnings(gnls(formula.gnls, data=dat, start=init, control=gnlsControl(
                 nlsTol=1e-1,  # nlsTol seems to be important, if set to 0.01, then often does not converge
@@ -43,12 +42,32 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
                 # msTol=1e-1, minScale=1e-1, .relStep=1e-7,
                 returnObject=TRUE, # allow the return of the fit when the max iter is reached
                 maxIter=5000, nlsMaxIter=50, opt="nlminb", msVerbose=T))), silent=FALSE)   
-            if(inherits(fit.1, "try-error")) {
-                res$error="cannot use naive method (gnls) to find initial valu"
-                return (res)
+            
+            failed=FALSE
+            if (is.null(fit.1)) failed=TRUE
+            if (inherits(fit.1, "try-error")) failed=TRUE
+            if(!failed) {
+                theta=coef(fit.1)                
+                if (theta["c"]<0) failed=TRUE
             }
-            theta=coef(fit.1)
-            if (f.is.1) theta=c(theta,f=1)            
+            
+#            if(failed) {
+#                res$error="cannot use naive method (gnls) to find initial valu"
+#                return (res)
+#            }
+
+            if (!failed) {
+                theta=coef(fit.1)                
+                if (f.is.1) theta=c(theta,f=1)    
+            } else {
+                optim.out = optim(par=init, 
+                      fn = function(theta,...) sum(m.0(theta[1],theta[2],theta[3],theta[4],...)), 
+                      gr = function(theta,...) colSums(attr(m.0(theta[1],theta[2],theta[3],theta[4],...), "gradient")), 
+                      (dat$readout.x), (dat$readout.y), k, 
+                      method="BFGS", control = list(trace=0), hessian = F)
+                theta=optim.out$par            
+            }           
+                    
         } else if (init.method=="optim") {
             optim.out = optim(par=init, 
                   fn = function(theta,...) sum(m.0(theta[1],theta[2],theta[3],theta[4],...)), 
@@ -66,6 +85,8 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
         cat(res$error, "\n", file=stderr())
         return (res)        
     }
+    
+    if (verbose) cat("LS fit:", theta, "\n")
     
     if (method=="naive") {
         res$coefficients=theta
@@ -88,7 +109,6 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
     
     #### Step 2 & 3: loop
     
-    if (verbose) cat("LS fit:", theta, "\n")
     rvar = numeric(n)
     # to use gnls, we need to reparameterize to use s.halfk.rvar, which is prc evaluated at rvar with k=sqrt(k)
     s.sqrt.k.rvar = numeric(n)

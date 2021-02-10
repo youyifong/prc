@@ -26,3 +26,4 @@ Sample size.
   \item{seed}{
 Random number generator seed.
 }
+}
