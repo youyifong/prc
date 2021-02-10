@@ -10,10 +10,10 @@ Simulate data.
 
 sim.data(sim, distr, n, seed=1)
 
-
-
 }
+
 \arguments{
+
   \item{sim}{
 string. A label for the simulation scenario.
 }
@@ -26,4 +26,5 @@ Sample size.
   \item{seed}{
 Random number generator seed.
 }
+
 }
