@@ -24,12 +24,14 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
     
     #### Step 1: find init by fitting the naive model assuming no measurement error in variable
     
-    if (is.null(init)) {
-        init=c("c"=exp(min(xvar,yvar))*0.8, "d"=exp(max(xvar,yvar)), "b"=-1) # *0.8 is to make c smaller than the smallest value of data, assuming readouts can only be positive
+    if (!is.null(init)) {
+        theta=init
+    } else {
+        init=c("c"=exp(min(xvar,yvar))*0.8, "d"=exp(max(xvar,yvar)), "b"=-2) # *0.8 is to make c smaller than the smallest value of data, assuming readouts can only be positive
         if (!is.3p) init=c(init,f=1)
         if (verbose) {cat("start at:", init, "\n")}    
         
-        if(init.method=="gnls") {
+#        if(init.method=="gnls") {
             # note that one of the good things about gnls is that NaN is removed, so c and d estimate can be more reasonable
             if (!is.3p) {
                 formula.gnls = as.formula(  "readout.y ~ log(c+(d-c)/(1+"%.%k%.%"^b*(((d-c)/(exp(readout.x)-c))^(1/f)-1))^f)"  ) 
@@ -45,6 +47,7 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
                 # msTol=1e-1, minScale=1e-1, .relStep=1e-7,
                 returnObject=TRUE, # allow the return of the fit when the max iter is reached
                 maxIter=5000, nlsMaxIter=50, opt="nlminb", msVerbose=T))), silent=FALSE)   
+            if(verbose) print(fit.1)
             
             # determine if gnls fit failed. If yes, try optim
             failed=FALSE
@@ -53,39 +56,59 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
             if(!failed) {
                 theta=coef(fit.1)                
                 if (theta["c"]<0) failed=TRUE
+                if(max(abs((theta-init)/init)<1e-6)) failed=TRUE
             }
+            if(verbose) myprint(failed)
                         
+            ### try optim
+            if (failed) {
+                if(verbose) print("gnls failed, try optim") 
+                if (!is.3p) {
+                    optim.out = try(optim(par=init, 
+                          fn = function(theta,...) sum(m.0(theta[1],theta[2],theta[3],theta[4],...)), 
+                          gr = function(theta,...) colSums(attr(m.0(theta[1],theta[2],theta[3],theta[4],...), "gradient")), 
+                          (dat$readout.x), (dat$readout.y), k, 
+                          method="BFGS", control = list(trace=0), hessian = F))                    
+                } else {
+                    optim.out = try(optim(par=init, 
+                          fn = function(theta,...) sum(m.0.3p(theta[1],theta[2],theta[3],...)), 
+                          gr = function(theta,...) colSums(attr(m.0.3p(theta[1],theta[2],theta[3],...), "gradient")), 
+                          (dat$readout.x), (dat$readout.y), k, 
+                          method="BFGS", control = list(trace=0), hessian = F))
+                }
+                
+                if (inherits(optim.out, "try-error")) {
+                    failed=TRUE
+                } else {
+                    theta=optim.out$par           
+                }
+            }           
+
             if (!failed) {
                 theta=coef(fit.1)                
                 if (is.3p) theta=c(theta,f=1)    
+                if (verbose) cat("init (LS fit):", theta, "\n")
             } else {
-                optim.out = optim(par=init, 
-                      fn = function(theta,...) sum(m.0(theta[1],theta[2],theta[3],theta[4],...)), 
-                      gr = function(theta,...) colSums(attr(m.0(theta[1],theta[2],theta[3],theta[4],...), "gradient")), 
-                      (dat$readout.x), (dat$readout.y), k, 
-                      method="BFGS", control = list(trace=0), hessian = F)
-                theta=optim.out$par           
-            }           
+                res$error="init failed"
+                cat(res$error, "\n", file=stderr())
+                return (res)        
+            }
+
                     
-        } else if (init.method=="optim") {
-            optim.out = optim(par=init, 
-                  fn = function(theta,...) sum(m.0(theta[1],theta[2],theta[3],theta[4],...)), 
-                  gr = function(theta,...) colSums(attr(m.0(theta[1],theta[2],theta[3],theta[4],...), "gradient")), 
-                  (dat$readout.x), (dat$readout.y), k, 
-                  method="BFGS", control = list(trace=0), hessian = F)
-            theta=optim.out$par            
-        }            
-    } else {
-        theta=init
+#        } else if (init.method=="optim") {
+#            optim.out = optim(par=init, 
+#                  fn = function(theta,...) sum(m.0(theta[1],theta[2],theta[3],theta[4],...)), 
+#                  gr = function(theta,...) colSums(attr(m.0(theta[1],theta[2],theta[3],theta[4],...), "gradient")), 
+#                  (dat$readout.x), (dat$readout.y), k, 
+#                  method="BFGS", control = list(trace=0), hessian = F)
+#            if (inherits(optim.out, "try-error")) {
+#                failed=TRUE
+#            } else {
+#                theta=optim.out$par            
+#            }
+#        }            
     }
     
-    if (theta["c"]<0) {
-        res$error="the initial estimate of theta has negative c"
-        cat(res$error, "\n", file=stderr())
-        return (res)        
-    }
-    
-    if (verbose) cat("init (LS fit):", theta, "\n")
     
     if (method=="naive") {
         res$coefficients=theta
@@ -414,6 +437,10 @@ predict.prc=function(object, new.dilution, xvar=NULL, dil.x=NULL, ret.sd=FALSE, 
 m.0.expr <- expression( (y - log(c+(d-c)/(1+(((d-c)/(exp(x)-c))^(1/f)-1)*k^b)^f)) ^2 )
 m.0=deriv3(m.0.expr, c("c","d","b","f"), c("c","d","b","f", "x","y","k"))
     
+m.0.expr.3p <- expression( (y - log(c+(d-c)/(1+(((d-c)/(exp(x)-c))-1)*k^b))) ^2 )
+m.0.3p=deriv3(m.0.expr.3p, c("c","d","b"), c("c","d","b", "x","y","k"))
+
+
 m.expr <- expression( (y - log(c+(d-c)/(1+(((d-c)/(exp(r)-c))^(1/f)-1)*k^b)^f)) ^2  +  (x - r) ^2 )
 #m.f=function(c,d,b,f,r,x,y,k)  (y - log(c+(d-c)/(1+(((d-c)/(exp(r)-c))^(1/f)-1)*k^b)^f))^2  +  (x - r)^2 
 m.f=deriv3(m.expr, c("c","d","b","f", "r"), c("c","d","b","f", "r","x","y","k")) # gradient is used in computing variance
