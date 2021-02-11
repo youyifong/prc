@@ -50,12 +50,7 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
                 theta=coef(fit.1)                
                 if (theta["c"]<0) failed=TRUE
             }
-            
-#            if(failed) {
-#                res$error="cannot use naive method (gnls) to find initial valu"
-#                return (res)
-#            }
-
+                        
             if (!failed) {
                 theta=coef(fit.1)                
                 if (f.is.1) theta=c(theta,f=1)    
@@ -65,7 +60,7 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
                       gr = function(theta,...) colSums(attr(m.0(theta[1],theta[2],theta[3],theta[4],...), "gradient")), 
                       (dat$readout.x), (dat$readout.y), k, 
                       method="BFGS", control = list(trace=0), hessian = F)
-                theta=optim.out$par            
+                theta=optim.out$par           
             }           
                     
         } else if (init.method=="optim") {
@@ -410,7 +405,7 @@ s.expr <- expression( log(c+(d-c)/(1+(((d-c)/(exp(r)-c))^(1/f)-1)*k^b)^f) )
 s.f=deriv3(s.expr, c("c","d","b","f", "r"), c("c","d","b","f", "r", "k")) #  not exported. Within the pkg, it is nice to have a function with as simple a name as s.
 
 # the .Call version is twice as fast as the R version
-four_pl_prc = function(c,d,b,f, xx, k, call.C=TRUE) {
+four_pl_prc = function(c,d,b,f, xx, k, call.C=FALSE) {
     if(call.C) {
         out=.Call("compute_four_pl_prc", c,d,b,f, xx, k)
     } else {
