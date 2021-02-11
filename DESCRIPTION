@@ -1,7 +1,7 @@
 Package: prc 
 LazyLoad: yes
 LazyData: yes
-Version: 2021.2-10
+Version: 2021.2-11
 Title: Paired Response Curve
 Author: Youyi Fong
 Maintainer: Youyi Fong <youyifong@gmail.com>

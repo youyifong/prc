@@ -92,7 +92,7 @@ numeric.
 }
   \item{init.method}{gnls uses gnls to find initial parameter estimate and optim uses optim. In the initial estimation, measurement errors in the xvar are ignored.}
   \item{reltol}{relative tolerance convergence criterion used in optimization}
-  \item{opt.method}{optimization method}
+  \item{opt.method}{optimization method. For 3P, optim works better than gnls.}
   \item{method}{TLS minimizes total least squares. Naive minmizes least squares, ignoring measurement errors in the xvar.}
   \item{model}{4P is a four-parameter model proposed in Fong et al. 3P is a three-parameter model that assumes f=1 in 4P.}
   \item{max.iter}{maximum number of iterations to perform in optimization. Each iteration comprises finding the best r given theta and finding the best theta given r}

@@ -10,8 +10,8 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
     
     if (verbose) {myprint(model, method, opt.method, init.method)}
     
-    f.is.1 = model=="3P"
-    if(f.is.1 & opt.method!="gnls") stop("3PL only implemented for gnls opt.method")
+    is.3p = model=="3P"
+    #if(is.3p & opt.method!="gnls") stop("3PL only implemented for gnls opt.method")
     
     k=dil.x/dil.y
     stopifnot(length(xvar)==length(yvar))
@@ -26,14 +26,17 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
     
     if (is.null(init)) {
         init=c("c"=exp(min(xvar,yvar))*0.8, "d"=exp(max(xvar,yvar)), "b"=-1) # *0.8 is to make c smaller than the smallest value of data, assuming readouts can only be positive
-        if (!f.is.1) init=c(init,f=1)
-        if (verbose) {cat("init:", init, "\n")}    
+        if (!is.3p) init=c(init,f=1)
+        if (verbose) {cat("start at:", init, "\n")}    
+        
         if(init.method=="gnls") {
             # note that one of the good things about gnls is that NaN is removed, so c and d estimate can be more reasonable
-            if (!f.is.1) {
-            #print(  "readout.y ~ log(c+(d-c)/(1+" %.% k %.% "^b*(((d-c)/(exp(readout.x)-c))^(1/f)-1))^f)"  )
+            if (!is.3p) {
                 formula.gnls = as.formula(  "readout.y ~ log(c+(d-c)/(1+"%.%k%.%"^b*(((d-c)/(exp(readout.x)-c))^(1/f)-1))^f)"  ) 
-            } else formula.gnls = as.formula(  "readout.y ~ log(c+(d-c)/(1+"%.%k%.%"^b*(((d-c)/(exp(readout.x)-c))-1)))"  ) 
+                #print(  "readout.y ~ log(c+(d-c)/(1+" %.% k %.% "^b*(((d-c)/(exp(readout.x)-c))^(1/f)-1))^f)"  )
+            } else {
+                formula.gnls = as.formula(  "readout.y ~ log(c+(d-c)/(1+"%.%k%.%"^b*(((d-c)/(exp(readout.x)-c))-1)))"  ) 
+            }
             
             # suppress warnings from the following gnls
             fit.1=try(suppressWarnings(gnls(formula.gnls, data=dat, start=init, control=gnlsControl(
@@ -43,6 +46,7 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
                 returnObject=TRUE, # allow the return of the fit when the max iter is reached
                 maxIter=5000, nlsMaxIter=50, opt="nlminb", msVerbose=T))), silent=FALSE)   
             
+            # determine if gnls fit failed. If yes, try optim
             failed=FALSE
             if (is.null(fit.1)) failed=TRUE
             if (inherits(fit.1, "try-error")) failed=TRUE
@@ -53,7 +57,7 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
                         
             if (!failed) {
                 theta=coef(fit.1)                
-                if (f.is.1) theta=c(theta,f=1)    
+                if (is.3p) theta=c(theta,f=1)    
             } else {
                 optim.out = optim(par=init, 
                       fn = function(theta,...) sum(m.0(theta[1],theta[2],theta[3],theta[4],...)), 
@@ -81,7 +85,7 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
         return (res)        
     }
     
-    if (verbose) cat("LS fit:", theta, "\n")
+    if (verbose) cat("init (LS fit):", theta, "\n")
     
     if (method=="naive") {
         res$coefficients=theta
@@ -108,8 +112,7 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
     # to use gnls, we need to reparameterize to use s.halfk.rvar, which is prc evaluated at rvar with k=sqrt(k)
     s.sqrt.k.rvar = numeric(n)
     iterations=0
-    
-    
+        
     while(TRUE) {
     
         iterations=iterations+1
@@ -132,12 +135,16 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
 #                  method="BFGS", control = list(trace=0), hessian = F)
 #            rvar[i]=optim.out$par
         }
-        s.sqrt.k.rvar = four_pl_prc (theta["c"], theta["d"], theta["b"], theta["f"], rvar, k^.5) # an easy to make mistake is to use k*.5 instead of k^.5
+        s.sqrt.k.rvar = four_pl_prc (theta["c"], theta["d"], theta["b"], theta["f"], rvar, k^.5)
+        if (verbose>1) {
+            myprint(theta)
+            str(s.sqrt.k.rvar)
+        }
         
         # Step 3: estimate theta
         if(opt.method=="gnls") {
             dat.stacked=data.frame(readout=c(unname(xvar),unname(yvar)), x=rep(s.sqrt.k.rvar,2), k=rep(c(k^(-1/2),k^(1/2)),each=n))
-            if (!f.is.1) {
+            if (!is.3p) {
                 formula.gnls = as.formula(  "(readout) ~ log(c+(d-c)/(1+k^b*(((d-c)/(exp(x)-c))^(1/f)-1))^f)"  ) 
                 start=theta
             } else {
@@ -157,16 +164,26 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
                 break;
             }
             new.theta=coef(fit.1)
-            if (f.is.1) new.theta=c(new.theta,f=1)
+            if (is.3p) new.theta=c(new.theta,f=1)
             
         } else if (opt.method=="optim") {
-            optim.out = optim(
-                  par=theta, 
-                  fn = function(theta,...) sum(m.deriv.theta(theta[1],theta[2],theta[3],theta[4],...)), 
-                  gr = function(theta,...) colSums(attr(m.deriv.theta(theta[1],theta[2],theta[3],theta[4],...), "gradient")), 
-                  (rvar), xvar, yvar, k, 
-                  method="BFGS", control = list(trace=0), hessian = F)
-            new.theta = optim.out$par 
+            if (!is.3p) {
+                optim.out = optim(
+                      par=theta, 
+                      fn = function(theta,...) sum(m.deriv.theta(theta[1],theta[2],theta[3],theta[4],...)), 
+                      gr = function(theta,...) colSums(attr(m.deriv.theta(theta[1],theta[2],theta[3],theta[4],...), "gradient")), 
+                      (rvar), xvar, yvar, k, 
+                      method="BFGS", control = list(trace=0), hessian = F)
+            } else {
+                theta.3p=theta[1:3]
+                optim.out = optim(
+                      par=theta.3p, 
+                      fn = function(theta,...) sum(m.deriv.theta.3p(theta[1],theta[2],theta[3],...)), 
+                      gr = function(theta,...) colSums(attr(m.deriv.theta.3p(theta[1],theta[2],theta[3],...), "gradient")), 
+                      (rvar), xvar, yvar, k, 
+                      method="BFGS", control = list(trace=0), hessian = F)
+            }
+            new.theta = c(optim.out$par, f=1)
         
         }
             
@@ -403,6 +420,11 @@ m.deriv.theta=deriv3(m.expr, c("c","d","b","f"), c("c","d","b","f", "r","x","y",
     
 s.expr <- expression( log(c+(d-c)/(1+(((d-c)/(exp(r)-c))^(1/f)-1)*k^b)^f) )
 s.f=deriv3(s.expr, c("c","d","b","f", "r"), c("c","d","b","f", "r", "k")) #  not exported. Within the pkg, it is nice to have a function with as simple a name as s.
+
+
+m.expr.3p <- expression( (y - log(c+(d-c)/(1+(((d-c)/(exp(r)-c))-1)*k^b))) ^2  +  (x - r) ^2 )
+m.deriv.theta.3p=deriv3(m.expr.3p, c("c","d","b"), c("c","d","b", "r","x","y","k"))
+
 
 # the .Call version is twice as fast as the R version
 four_pl_prc = function(c,d,b,f, xx, k, call.C=FALSE) {

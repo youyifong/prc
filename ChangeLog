@@ -38,3 +38,6 @@
 
 2021-02-10
     * update sim.data and prc
+
+2021-02-11
+    * update prc to add optim for opt.method for 3P
