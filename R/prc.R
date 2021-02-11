@@ -47,7 +47,7 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
                 # msTol=1e-1, minScale=1e-1, .relStep=1e-7,
                 returnObject=TRUE, # allow the return of the fit when the max iter is reached
                 maxIter=5000, nlsMaxIter=50, opt="nlminb", msVerbose=T))), silent=FALSE)   
-            if(verbose) print(fit.1)
+            #if(verbose) print(fit.1)
             
             # determine if gnls fit failed. If yes, try optim
             failed=FALSE
@@ -79,8 +79,11 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
                 
                 if (inherits(optim.out, "try-error")) {
                     failed=TRUE
+                    if (verbose) print("optim failed too")
                 } else {
                     theta=optim.out$par           
+                    if (verbose) print("optim succeeded")
+                    failed=FALSE
                 }
             }           
 
