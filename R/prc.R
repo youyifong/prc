@@ -174,6 +174,8 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
                       gr = function(theta,...) colSums(attr(m.deriv.theta(theta[1],theta[2],theta[3],theta[4],...), "gradient")), 
                       (rvar), xvar, yvar, k, 
                       method="BFGS", control = list(trace=0), hessian = F)
+                new.theta = optim.out$par
+                
             } else {
                 theta.3p=theta[1:3]
                 optim.out = optim(
@@ -182,8 +184,8 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
                       gr = function(theta,...) colSums(attr(m.deriv.theta.3p(theta[1],theta[2],theta[3],...), "gradient")), 
                       (rvar), xvar, yvar, k, 
                       method="BFGS", control = list(trace=0), hessian = F)
+                new.theta = c(optim.out$par, f=1)
             }
-            new.theta = c(optim.out$par, f=1)
         
         }
             
