@@ -7,9 +7,8 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
     model=match.arg(model)
     method=match.arg(method)
     opt.method=match.arg(opt.method)
-    init.method=match.arg(init.method)
     
-    if (verbose) {myprint(model, method, opt.method, init.method)}
+    if (verbose) {myprint(model, method, opt.method)}
     
     is.3p = model=="3P"
     #if(is.3p & opt.method!="gnls") stop("3PL only implemented for gnls opt.method")
