@@ -1,6 +1,7 @@
 # reltol=1e-3; opt.method="gnls"; max.iter=50; verbose=TRUE; model="4P"; method="TLS"; init.method="gnls"
 prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive"),
-  init.method=c("gnls","optim"), opt.method=c("gnls","optim"), reltol=1e-3, max.iter=50, init=NULL,
+  #init.method=c("gnls","optim"), 
+  opt.method=c("gnls","optim"), reltol=1e-3, max.iter=50, init=NULL,
   verbose=FALSE) {    
     
     model=match.arg(model)
