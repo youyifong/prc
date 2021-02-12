@@ -1,4 +1,4 @@
-sim.data=function(sim=c("sim1","sim0"), distr, n, sigmasq=.01, seed=1) {
+sim.data=function(sim=c("sim1","sim0","sim.9","sim.8","sim.7"), distr, n, sigmasq=.01, seed=1) {
     
     set.seed(seed)
     sim<-match.arg(sim)    
@@ -6,12 +6,11 @@ sim.data=function(sim=c("sim1","sim0"), distr, n, sigmasq=.01, seed=1) {
     dil.x=5; dil.y=1
     dil.r=dil.x/dil.y
     
-    if(sim=="sim1") {
-        theta=c(c=13,d=27560,b=-2.5,f=0.42)
-        
-    } else if (sim=="sim0") {
-    # symmetric
-        theta=c(c=13,d=27560,b=-2.5,f=1)        
+    if(sim=="sim1") {          theta=c(c=13,d=27560,b=-2.5,f=0.42)        
+    } else if (sim=="sim0")  { theta=c(c=13,d=27560,b=-2.5,f=1)   # symmetric
+    } else if (sim=="sim.9") { theta=c(c=13,d=27560,b=-2.5,f=.9)        
+    } else if (sim=="sim.8") { theta=c(c=13,d=27560,b=-2.5,f=.8)        
+    } else if (sim=="sim.7") { theta=c(c=13,d=27560,b=-2.5,f=.7)        
     }
     
     ###############################
