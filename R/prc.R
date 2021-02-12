@@ -27,89 +27,75 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
     if (!is.null(init)) {
         theta=init
     } else {
-        init=c("c"=exp(min(xvar,yvar))*0.8, "d"=exp(max(xvar,yvar)), "b"=-2) # *0.8 is to make c smaller than the smallest value of data, assuming readouts can only be positive
+        init=c("c"=exp(min(xvar,yvar))*0.8, "d"=exp(max(xvar,yvar)), "b"=-2.5) # *0.8 is to make c smaller than the smallest value of data, assuming readouts can only be positive
         if (!is.3p) init=c(init,f=1)
         if (verbose) {cat("start at:", init, "\n")}    
         
-#        if(init.method=="gnls") {
-            # note that one of the good things about gnls is that NaN is removed, so c and d estimate can be more reasonable
-            if (!is.3p) {
-                formula.gnls = as.formula(  "readout.y ~ log(c+(d-c)/(1+"%.%k%.%"^b*(((d-c)/(exp(readout.x)-c))^(1/f)-1))^f)"  ) 
-                #print(  "readout.y ~ log(c+(d-c)/(1+" %.% k %.% "^b*(((d-c)/(exp(readout.x)-c))^(1/f)-1))^f)"  )
-            } else {
-                formula.gnls = as.formula(  "readout.y ~ log(c+(d-c)/(1+"%.%k%.%"^b*(((d-c)/(exp(readout.x)-c))-1)))"  ) 
-            }
-            
-            # suppress warnings from the following gnls
-            fit.1=try(suppressWarnings(gnls(formula.gnls, data=dat, start=init, control=gnlsControl(
-                nlsTol=1e-1,  # nlsTol seems to be important, if set to 0.01, then often does not converge
-                tolerance=1e-4, 
-                # msTol=1e-1, minScale=1e-1, .relStep=1e-7,
-                returnObject=TRUE, # allow the return of the fit when the max iter is reached
-                maxIter=5000, nlsMaxIter=50, opt="nlminb", msVerbose=T))), silent=FALSE)   
-            #if(verbose) print(fit.1)
-            
-            # determine if gnls fit failed. If yes, try optim
-            failed=FALSE
-            if (is.null(fit.1)) failed=TRUE
-            if (inherits(fit.1, "try-error")) failed=TRUE
-            if(!failed) {
-                theta=coef(fit.1)                
-                if (theta["c"]<0) failed=TRUE
-                if(max(abs((theta-init)/init)<1e-6)) failed=TRUE
-            }
-            if(verbose) myprint(failed)
-                        
-            ### try optim
-            if (failed) {
-                if(verbose) print("gnls failed, try optim") 
-                if (!is.3p) {
-                    optim.out = try(optim(par=init, 
-                          fn = function(theta,...) sum(m.0(theta[1],theta[2],theta[3],theta[4],...)), 
-                          gr = function(theta,...) colSums(attr(m.0(theta[1],theta[2],theta[3],theta[4],...), "gradient")), 
-                          (dat$readout.x), (dat$readout.y), k, 
-                          method="BFGS", control = list(trace=0), hessian = F))                    
-                } else {
-                    optim.out = try(optim(par=init, 
-                          fn = function(theta,...) sum(m.0.3p(theta[1],theta[2],theta[3],...)), 
-                          gr = function(theta,...) colSums(attr(m.0.3p(theta[1],theta[2],theta[3],...), "gradient")), 
-                          (dat$readout.x), (dat$readout.y), k, 
-                          method="BFGS", control = list(trace=0), hessian = F))
-                }
-                
-                if (inherits(optim.out, "try-error")) {
-                    failed=TRUE
-                    if (verbose) print("optim failed too")
-                } else {
-                    theta=optim.out$par           
-                    if (verbose) print("optim succeeded")
-                    failed=FALSE
-                }
-            }           
-
-            if (!failed) {
-                theta=coef(fit.1)                
-                if (is.3p) theta=c(theta,f=1)    
-                if (verbose) cat("init (LS fit):", theta, "\n")
-            } else {
-                res$error="init failed"
-                cat(res$error, "\n", file=stderr())
-                return (res)        
-            }
-
+        # note that one of the good things about gnls is that NaN is removed, so c and d estimate can be more reasonable
+        if (!is.3p) {
+            formula.gnls = as.formula(  "readout.y ~ log(c+(d-c)/(1+"%.%k%.%"^b*(((d-c)/(exp(readout.x)-c))^(1/f)-1))^f)"  ) 
+            #print(  "readout.y ~ log(c+(d-c)/(1+" %.% k %.% "^b*(((d-c)/(exp(readout.x)-c))^(1/f)-1))^f)"  )
+        } else {
+            formula.gnls = as.formula(  "readout.y ~ log(c+(d-c)/(1+"%.%k%.%"^b*(((d-c)/(exp(readout.x)-c))-1)))"  ) 
+        }
+        
+        # suppress warnings from the following gnls
+        fit.1=try(suppressWarnings(gnls(formula.gnls, data=dat, start=init, control=gnlsControl(
+            nlsTol=1e-1,  # nlsTol seems to be important, if set to 0.01, then often does not converge
+            tolerance=1e-4, 
+            # msTol=1e-1, minScale=1e-1, .relStep=1e-7,
+            returnObject=TRUE, # allow the return of the fit when the max iter is reached
+            maxIter=5000, nlsMaxIter=50, opt="nlminb", msVerbose=T))), silent=FALSE)   
+        #if(verbose) print(fit.1)
+        
+        # determine if gnls fit failed. If yes, try optim
+        failed=FALSE
+        if (is.null(fit.1)) failed=TRUE
+        if (inherits(fit.1, "try-error")) failed=TRUE
+        if(!failed) {
+            theta=coef(fit.1)                
+            if (theta["c"]<0) failed=TRUE
+            if(max(abs((theta-init)/init)<1e-6)) failed=TRUE
+        }
+        if(verbose) myprint(failed)
                     
-#        } else if (init.method=="optim") {
-#            optim.out = optim(par=init, 
-#                  fn = function(theta,...) sum(m.0(theta[1],theta[2],theta[3],theta[4],...)), 
-#                  gr = function(theta,...) colSums(attr(m.0(theta[1],theta[2],theta[3],theta[4],...), "gradient")), 
-#                  (dat$readout.x), (dat$readout.y), k, 
-#                  method="BFGS", control = list(trace=0), hessian = F)
-#            if (inherits(optim.out, "try-error")) {
-#                failed=TRUE
-#            } else {
-#                theta=optim.out$par            
-#            }
-#        }            
+        ### try optim
+        if (failed) {
+            if(verbose) print("gnls failed, try optim") 
+            if (!is.3p) {
+                optim.out = try(optim(par=init, 
+                      fn = function(theta,...) sum(m.0(theta[1],theta[2],theta[3],theta[4],...)), 
+                      gr = function(theta,...) colSums(attr(m.0(theta[1],theta[2],theta[3],theta[4],...), "gradient")), 
+                      (dat$readout.x), (dat$readout.y), k, 
+                      method="BFGS", control = list(trace=0), hessian = F))                    
+            } else {
+                optim.out = try(optim(par=init, 
+                      fn = function(theta,...) sum(m.0.3p(theta[1],theta[2],theta[3],...)), 
+                      gr = function(theta,...) colSums(attr(m.0.3p(theta[1],theta[2],theta[3],...), "gradient")), 
+                      (dat$readout.x), (dat$readout.y), k, 
+                      method="BFGS", control = list(trace=0), hessian = F))
+            }
+            
+            if (inherits(optim.out, "try-error")) {
+                failed=TRUE
+                if (verbose) print("optim failed too")
+            } else {
+                theta=optim.out$par           
+                if (verbose) print("optim succeeded")
+                failed=FALSE
+            }
+        }           
+
+        if (!failed) {
+            theta=coef(fit.1)                
+            if (is.3p) theta=c(theta,f=1)    
+            if (verbose) cat("init (LS fit):", theta, "\n")
+        } else {
+            res$error="init failed"
+            cat(res$error, "\n", file=stderr())
+            return (res)        
+        }
+
     }
     
     
