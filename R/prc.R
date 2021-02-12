@@ -1,6 +1,6 @@
 # reltol=1e-3; opt.method="gnls"; max.iter=50; verbose=TRUE; model="4P"; method="TLS"; init.method="gnls"
 prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive"),
-  #init.method=c("gnls","optim"), 
+  try.optim.init=TRUE,
   opt.method=c("gnls","optim"), reltol=1e-3, max.iter=50, init=NULL,
   verbose=FALSE) {    
     
@@ -55,12 +55,12 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
         if(!failed) {
             theta=coef(fit.1)                
             if (theta["c"]<0) failed=TRUE
-            if(max(abs((theta-init)/init)<1e-6)) failed=TRUE
+            if (max(abs((theta-init)/init)<1e-6)) failed=TRUE
         }
         if(verbose) myprint(failed)
                     
         ### try optim
-        if (failed) {
+        if (failed & try.optim.init) {
             if(verbose) print("gnls failed, try optim") 
             if (!is.3p) {
                 optim.out = try(optim(par=init, 
