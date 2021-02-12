@@ -27,7 +27,7 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
     if (!is.null(init)) {
         theta=init
     } else {
-        init=c("c"=exp(min(xvar,yvar))*0.8, "d"=exp(max(xvar,yvar)), "b"=-2.5) # *0.8 is to make c smaller than the smallest value of data, assuming readouts can only be positive
+        init=c("c"=exp(min(xvar,yvar))*0.8, "d"=exp(max(xvar,yvar)), "b"=-1) # *0.8 is to make c smaller than the smallest value of data, assuming readouts can only be positive
         if (!is.3p) init=c(init,f=1)
         if (verbose) {cat("start at:", init, "\n")}    
         
