@@ -80,15 +80,14 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
                 failed=TRUE
                 if (verbose) print("optim failed too")
             } else {
-                theta=optim.out$par           
+                theta=optim.out$par
+                if (is.3p) theta=c(theta,f=1)    
                 if (verbose) print("optim succeeded")
                 failed=FALSE
             }
         }           
 
         if (!failed) {
-            theta=coef(fit.1)                
-            if (is.3p) theta=c(theta,f=1)    
             if (verbose) cat("init (LS fit):", theta, "\n")
         } else {
             res$error="init failed"
