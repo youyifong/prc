@@ -55,7 +55,7 @@ prc=function(xvar, dil.x, yvar, dil.y, model=c("4P","3P"), method=c("TLS","naive
         if(!failed) {
             theta=coef(fit.1)                
             if (theta["c"]<0) failed=TRUE
-            if (max(abs((theta-init)/init)<1e-6)) failed=TRUE
+            #if (max(abs((theta-init)/init)<1e-6)) failed=TRUE
         }
         if(verbose) myprint(failed)
                     
